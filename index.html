@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>订阅节点前端转换工具</title>
+    <!-- Google Fonts: Roboto for UI, Noto Sans SC for Chinese, Roboto Mono for Code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Roboto+Mono&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- Google Inspired CSS --- */
+        :root {
+            --google-blue: #1a73e8;
+            --google-blue-dark: #174ea6;
+            --google-grey-background: #f8f9fa;
+            --google-grey-border: #dadce0;
+            --google-text-primary: #202124;
+            --google-text-secondary: #5f6368;
+            --google-red-error: #d93025;
+            --google-green-success: #1e8e3e;
+            --font-body: 'Roboto', 'Noto Sans SC', sans-serif;
+            --font-code: 'Roboto Mono', monospace;
+        }
+
+        body {
+            font-family: var(--font-body);
+            font-size: 16px;
+            line-height: 1.8;
+            color: var(--google-text-secondary);
+            background-color: var(--google-grey-background);
+            margin: 0;
+            padding: 24px;
+            display: flex;
+            flex-direction: column; /* Allow stacking of main-container and footer */
+            align-items: center; /* Center content horizontally */
+            box-sizing: border-box;
+        }
+
+        .main-container {
+            max-width: 800px;
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(60,64,67,0.15);
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 32px 40px 24px 40px;
+            border-bottom: 1px solid var(--google-grey-border);
+        }
+        
+        h1 { 
+            font-size: 2em; 
+            color: var(--google-text-primary);
+            font-weight: 500;
+            margin: 0 0 8px 0;
+        }
+
+        .subtitle {
+            font-size: 1rem;
+            color: var(--google-text-secondary);
+            margin: 0;
+        }
+
+        /* Tab System */
+        .tab-container {
+            display: flex;
+            border-bottom: 1px solid var(--google-grey-border);
+        }
+
+        .tab-button {
+            flex-grow: 1;
+            padding: 16px;
+            cursor: pointer;
+            text-align: center;
+            font-weight: 500;
+            color: var(--google-text-secondary);
+            background-color: #fff;
+            border: none;
+            position: relative;
+            transition: color 0.2s;
+            font-size: 1rem;
+            font-family: var(--font-body);
+        }
+        
+        .tab-button:hover {
+            color: var(--google-text-primary);
+        }
+        
+        .tab-button.active {
+            color: var(--google-blue);
+        }
+
+        .tab-button.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background-color: var(--google-blue);
+        }
+
+        .tab-content {
+            display: none;
+            padding: 24px 40px 40px 40px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Interactive Tool Styling */
+        h2 {
+            font-size: 1.5em;
+            color: var(--google-text-primary);
+            font-weight: 500;
+            margin-top: 0;
+            margin-bottom: 24px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--google-text-primary);
+        }
+
+        select, input[type="number"] {
+            font-family: inherit; /* Use the body font */
+        }
+
+        textarea {
+            font-family: var(--font-code); /* Use the monospace code font */
+            line-height: 1.6;
+        }
+
+        textarea, select, input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 16px;
+            border-radius: 4px;
+            border: 1px solid var(--google-grey-border);
+            font-size: 0.9rem;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        
+        textarea:focus, select:focus, input[type="number"]:focus {
+            border-color: var(--google-blue);
+            outline: none;
+        }
+        
+        input[type="number"] {
+             width: 200px;
+        }
+
+        .action-button {
+            display: inline-block;
+            background-color: var(--google-blue);
+            color: white;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            transition: background-color 0.2s, color 0.2s;
+            padding: 10px 20px;
+            border-radius: 4px;
+            margin-top: 10px;
+            font-size: 1rem;
+            text-align: center;
+            text-decoration: none;
+        }
+
+        .action-button:hover {
+            background-color: var(--google-blue-dark);
+            color: white;
+        }
+        
+        .action-button.disabled {
+            background-color: #f1f3f4;
+            color: #a6a6a6;
+            pointer-events: none;
+            cursor: not-allowed;
+        }
+        
+        .info-div {
+            font-weight: 500;
+            margin: 10px 0;
+            height: 1.2em;
+        }
+        
+        #kd {
+            display: block;
+            word-wrap: break-word;
+            margin-top: 10px;
+            padding: 10px;
+            border-radius: 4px;
+            transition: background-color 0.2s, color 0.2s;
+        }
+        #kd:not(.disabled) { /* Active link style */
+            background-color: #e8f0fe;
+            color: var(--google-blue);
+            font-weight: 500;
+        }
+        #kd.disabled { /* Placeholder text style */
+            background-color: transparent;
+            color: var(--google-text-secondary);
+            padding-left: 0;
+            padding-right: 0;
+            font-weight: 400;
+            pointer-events: none;
+            cursor: default;
+            text-decoration: none;
+        }
+
+        /* --- Footer Notes Section --- */
+        .footer-notes {
+            padding: 24px 40px 40px 40px;
+            background-color: var(--google-grey-background);
+            border-top: 1px solid var(--google-grey-border);
+        }
+        .footer-notes h2 {
+            border-bottom: none;
+            font-size: 1.2em;
+            margin-top: 1.5em;
+            margin-bottom: 0.8em;
+        }
+        .footer-notes h2:first-child {
+            margin-top: 0;
+        }
+        .footer-notes ul {
+            padding-left: 20px;
+            list-style-type: disc;
+        }
+        .footer-notes li {
+            margin-bottom: 0.8em;
+        }
+        .footer-notes p {
+            line-height: 1.6;
+        }
+        .footer-notes a {
+            text-decoration: none;
+            font-weight: 500;
+            color: var(--google-blue);
+        }
+        .footer-notes a:hover {
+            text-decoration: underline;
+        }
+        
+        .tool-link {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 12px;
+            border-radius: 16px;
+            background-color: #e8f0fe;
+            color: var(--google-blue-dark);
+            font-weight: 500;
+            text-decoration: none;
+            transition: background-color .2s;
+        }
+        .tool-link:hover {
+            background-color: #d2e3fc;
+            text-decoration: none;
+        }
+        
+        .youtube-icon {
+            display: inline-block;
+            vertical-align: middle;
+            transition: transform .2s;
+        }
+        .youtube-icon:hover {
+            transform: scale(1.1);
+        }
+
+        .page-footer {
+            text-align: center;
+            padding-top: 24px;
+            width: 100%;
+        }
+        .github-icon {
+            color: var(--google-text-secondary);
+            transition: color .2s;
+        }
+        .github-icon:hover {
+            color: var(--google-text-primary);
+        }
+
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <header class="header">
+            <h1>订阅节点前端转换工具</h1>
+            <p class="subtitle">实现本地订阅节点转换及任意协议转Socks节点转换的前端生成功能</p>
+        </header>
+
+        <div class="tab-container">
+            <button class="tab-button active" onclick="openTab(event, 'subConverter')">订阅链接转换</button>
+            <button class="tab-button" onclick="openTab(event, 'socksGenerator')">Socks节点生成</button>
+        </div>
+
+        <!-- Tab 1: 订阅链接转换 -->
+        <div id="subConverter" class="tab-content active">
+            <h2>简易版订阅转换工具</h2>
+            <label for="filepath">节点/订阅链接/文件路径:</label>
+            <textarea placeholder="支持单个节点、多个节点、订阅直链和本地文件路径" id="filepath" rows="8"></textarea>
+            
+            <label for="subtype">将格式转换为:</label>
+            <select id="subtype">
+                <option value="clash">clash</option>
+                <option value="mixed">Base64通用</option>
+            </select>
+            
+            <button class="action-button" onclick="createSubLink();">生成链接</button>
+            
+            <a id="kd"></a>
+        </div>
+
+        <!-- Tab 2: Socks节点生成 -->
+        <div id="socksGenerator" class="tab-content">
+            <h2>转换本地Socks代理工具</h2>
+            <label for="inputYAML">Clash配置文件内容:</label>
+            <textarea id="inputYAML" rows="8" placeholder="拖动Clash配置文件到此处，或在此处粘贴内容"></textarea>
+            
+            <label for="startPort">起始端口:</label>
+            <input type="number" id="startPort" min="1" step="1" value="42000">
+            <br>
+            
+            <button class="action-button" id="processButton">生成节点配置</button>
+            
+            <p id="infoDiv" class="info-div"></p>
+            
+            <label for="outputYAML">生成结果:</label>
+            <textarea id="outputYAML" rows="8" readonly placeholder="这里会显示生成的内容..."></textarea>
+            
+            <a id="downloadLink" href="#" class="action-button disabled">下载配置文件</a>
+        </div>
+        
+        <!-- Footer Notes Section -->
+        <footer class="footer-notes">
+            <h2>说明</h2>
+            <ul>
+                <li>不可靠的在线的节点订阅地址转换存在导致节点被盗可能性</li>
+                <li>转换节点的数量有限制</li>
+                <li>直链平台不好找，也依赖后端平台稳定性</li>
+            </ul>
+            <p>这里订阅转换可解决在线订阅转换存在的问题，转换软件为本地运行，转换方式为基于 Web 前端开发，不存在泄露链接风险。</p>
+
+            <h2>需要使用到的工具</h2>
+            <ul>
+                <li>代理工具：<a class="tool-link" href="https://github.com/2dust/v2rayN/releases" target="_blank">v2rayN</a></li>
+                <li>本地订阅转换软件：<a class="tool-link" href="https://github.com/asdlokj1qpi233/subconverter/releases" target="_blank">subconverter</a></li>
+                <li>
+                    视频教程：
+                    <a href="https://youtu.be/01F8xUxqmkY?si=GkYb5MQbW-YJiKL1" target="_blank" class="youtube-icon" title="观看视频教程">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-youtube" style="color: #ff0000;">
+                            <path d="M22.54 6.42a2.78 2.78 0 0 0-1.94-2C18.88 4 12 4 12 4s-6.88 0-8.6.46a2.78 2.78 0 0 0-1.94 2A29 29 0 0 0 1 11.75a29 29 0 0 0 .46 5.33A2.78 2.78 0 0 0 3.4 19c1.72.46 8.6.46 8.6.46s6.88 0 8.6-.46a2.78 2.78 0 0 0 1.94-2A29 29 0 0 0 23 11.75a29 29 0 0 0-.46-5.33z"></path>
+                            <polygon points="9.75 15.02 15.5 11.75 9.75 8.48 9.75 15.02"></polygon>
+                        </svg>
+                    </a>
+                </li>
+            </ul>
+
+            <h2>鸣谢</h2>
+            <p>
+                <a href="https://github.com/tindy2013" target="_blank">tindy2013</a> 和 
+                <a href="https://github.com/asdlokj1qpi233" target="_blank">asdlokj1qpi233</a>
+            </p>
+        </footer>
+    </div>
+
+    <!-- Standalone Page Footer for GitHub link -->
+    <footer class="page-footer">
+        <a href="https://github.com/donald-laird/subconverter-frantpage" target="_blank" title="View project on GitHub">
+            <svg class="github-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.91 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"></path>
+            </svg>
+        </a>
+    </footer>
+
+    <!-- JavaScript libraries required for the tools -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml/dist/js-yaml.min.js"></script>
+
+    <script type="text/javascript">
+        // --- Tab Switching Logic ---
+        function openTab(evt, tabName) {
+            let i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tab-content");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tab-button");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+        }
+
+        // --- Tool 1: Subscription Converter Logic ---
+        function resetSubLinkState() {
+            const kd = document.getElementById('kd');
+            kd.innerText = '请先输入节点并点击生成链接';
+            kd.removeAttribute('href');
+            kd.classList.add('disabled');
+        }
+
+        function createSubLink() {
+            const filepath = document.getElementById('filepath').value;
+            const subtype = document.getElementById('subtype').value;
+            const kd = document.getElementById('kd');
+
+            if (filepath.trim() === "") {
+                resetSubLinkState();
+                alert("节点/订阅链接不能为空！");
+                return false;
+            }
+
+            const url = `http://localhost:25500/sub?target=${subtype}&url=${encodeURIComponent(filepath.replace(/\n/g, "|"))}&insert=false`;
+
+            kd.href = url;
+            kd.innerText = url;
+            kd.target = '_blank';
+            kd.classList.remove('disabled');
+        }
+
+
+        // --- Tool 2 & Initializations ---
+        $(document).ready(function() {
+            // --- Tool 1 Initialization ---
+            resetSubLinkState();
+            $('#filepath').on('input', function() {
+                if ($(this).val().trim() === '') {
+                    resetSubLinkState();
+                }
+            });
+
+            // --- Tool 2 Logic ---
+            const $infoDiv = $('#infoDiv');
+            const $outputYAML = $('#outputYAML');
+            const $downloadLink = $('#downloadLink');
+
+            function resetSocksToolState() {
+                $infoDiv.text('');
+                $outputYAML.val('');
+                $downloadLink.addClass('disabled').attr('href', '#');
+            }
+
+            $('#inputYAML, #startPort').on('input', resetSocksToolState);
+            
+            $('#inputYAML').on('dragover drop', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (e.type === 'drop') {
+                    const file = e.originalEvent.dataTransfer.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = function(event) {
+                            $('#inputYAML').val(event.target.result);
+                            resetSocksToolState();
+                        };
+                        reader.readAsText(file);
+                    }
+                }
+            });
+
+            $('#processButton').click(function() {
+                resetSocksToolState();
+                
+                const inputYAML = $('#inputYAML').val();
+                if (!inputYAML.trim()) {
+                    $infoDiv.text('输入内容不能为空！').css('color', 'var(--google-red-error)');
+                    return;
+                }
+                const startPort = parseInt($('#startPort').val());
+
+                try {
+                    const yamlData = jsyaml.load(inputYAML);
+                    if (!yamlData || !Array.isArray(yamlData.proxies)) {
+                         throw new Error("Invalid YAML structure: 'proxies' array not found.");
+                    }
+                    const numProxies = yamlData.proxies.length;
+                    
+                    const newYAML = {
+                        'allow-lan': true,
+                        dns: {
+                            enable: true,
+                            'enhanced-mode': 'fake-ip',
+                            'fake-ip-range': '198.18.0.1/16',
+                            'default-nameserver': ['114.114.114.114'],
+                            nameserver: ['https://doh.pub/dns-query']
+                        },
+                        listeners: [],
+                        proxies: yamlData.proxies
+                    };
+
+                    newYAML.listeners = Array.from({ length: numProxies }, (_, i) => ({
+                        name: `mixed${i}`,
+                        type: 'mixed',
+                        port: startPort + i,
+                        proxy: yamlData.proxies[i].name
+                    }));
+
+                    const newYAMLString = jsyaml.dump(newYAML);
+                    $outputYAML.val(newYAMLString);
+                    
+                    const blob = new Blob([newYAMLString], { type: 'text/yaml' });
+                    $downloadLink
+                        .attr('href', URL.createObjectURL(blob))
+                        .attr('download', 'config.yaml')
+                        .removeClass('disabled');
+
+                    $infoDiv.text(`处理成功！起始端口：${startPort}，结束端口：${startPort + numProxies - 1}`).css('color', 'var(--google-green-success)');
+
+                } catch (error) {
+                    $infoDiv.text('处理失败，请确认文件格式为Clash兼容的YAML！').css('color', 'var(--google-red-error)');
+                    console.error(error);
+                }
+            });
+        });
+    </script>
+</body>
+</html>
