@@ -49,6 +49,7 @@
         }
 
         .header {
+            position: relative; /* Needed for absolute positioning of child elements */
             padding: 32px 40px 24px 40px;
             border-bottom: 1px solid var(--google-grey-border);
         }
@@ -64,6 +65,17 @@
             font-size: 1rem;
             color: var(--google-text-secondary);
             margin: 0;
+        }
+
+        .home-icon-link {
+            position: absolute;
+            top: 32px;
+            right: 40px;
+            color: var(--google-text-secondary);
+            transition: color 0.2s;
+        }
+        .home-icon-link:hover {
+            color: var(--google-text-primary);
         }
 
         /* Tab System */
@@ -294,6 +306,9 @@
 <body>
     <div class="main-container">
         <header class="header">
+            <a href="https://t.hotrue.cc" class="home-icon-link" title="回到我的常用工具网站主页" target="_blank">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24px" viewBox="0 0 24 24" width="24px" fill="currentColor"><path d="M0 0h24v24H0z" fill="none"/><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+            </a>
             <h1>订阅节点前端转换工具</h1>
             <p class="subtitle">实现本地订阅节点转换及任意协议转Socks节点转换的前端生成功能</p>
         </header>
