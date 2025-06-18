@@ -300,6 +300,24 @@
         .github-icon:hover {
             color: var(--google-text-primary);
         }
+        
+        .hidden {
+            display: none;
+        }
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        .checkbox-container input[type="checkbox"]{
+            width: auto;
+            margin-right: 8px;
+        }
+        .checkbox-container label {
+            display: inline-block;
+            font-weight: normal;
+            margin-bottom: 0;
+        }
 
     </style>
 </head>
@@ -343,7 +361,16 @@
             
             <label for="startPort">起始端口:</label>
             <input type="number" id="startPort" min="1" step="1" value="42000">
-            <br>
+
+            <div class="checkbox-container">
+                <input type="checkbox" id="setDefaultPortCheckbox">
+                <label for="setDefaultPortCheckbox">是否设置默认端口</label>
+            </div>
+
+            <div id="defaultPortContainer" class="hidden">
+                <label for="defaultPort">默认端口:</label>
+                <input type="number" id="defaultPort" min="1" step="1" value="10808">
+            </div>
             
             <button class="action-button" id="processButton">生成节点配置</button>
             
@@ -459,14 +486,24 @@
             const $infoDiv = $('#infoDiv');
             const $outputYAML = $('#outputYAML');
             const $downloadLink = $('#downloadLink');
+            const $setDefaultPortCheckbox = $('#setDefaultPortCheckbox');
+            const $defaultPortContainer = $('#defaultPortContainer');
+            const $defaultPortInput = $('#defaultPort');
 
             function resetSocksToolState() {
                 $infoDiv.text('');
                 $outputYAML.val('');
                 $downloadLink.addClass('disabled').attr('href', '#');
             }
+            
+            // Show/hide default port input based on checkbox state
+            $setDefaultPortCheckbox.on('change', function() {
+                $defaultPortContainer.toggleClass('hidden', !this.checked);
+                resetSocksToolState();
+            });
 
-            $('#inputYAML, #startPort').on('input', resetSocksToolState);
+            // Reset output if any relevant input changes
+            $('#inputYAML, #startPort, #defaultPort').on('input', resetSocksToolState);
             
             $('#inputYAML').on('dragover drop', function(e) {
                 e.preventDefault();
@@ -484,6 +521,24 @@
                 }
             });
 
+            /**
+             * Finds the proxy list from parsed YAML data, accommodating various formats.
+             * @param {object | any[]} data - The parsed YAML data.
+             * @returns {any[] | null} The array of proxies, or null if not found.
+             */
+            function findProxies(data) {
+                if (!data) return null;
+                // Case 1: Standard object with a 'proxies' array
+                if (Array.isArray(data.proxies)) return data.proxies;
+                 // Case 2: Standard object with a 'proxy' array (common alternative)
+                if (Array.isArray(data.proxy)) return data.proxy;
+                // Case 3: The data itself is the array of proxies
+                if (Array.isArray(data)) return data;
+                // No proxy list found
+                return null;
+            }
+
+
             $('#processButton').click(function() {
                 resetSocksToolState();
                 
@@ -492,14 +547,37 @@
                     $infoDiv.text('输入内容不能为空！').css('color', 'var(--google-red-error)');
                     return;
                 }
+
+                function isValidPort(port) {
+                    return !isNaN(port) && port >= 1 && port <= 65535;
+                }
+
                 const startPort = parseInt($('#startPort').val());
+                if (!isValidPort(startPort)) {
+                    $infoDiv.text('起始端口无效，请输入1-65535之间的数字。').css('color', 'var(--google-red-error)');
+                    return;
+                }
+
+                const useDefaultPort = $setDefaultPortCheckbox.is(':checked');
+                let defaultPort = 0;
+                if (useDefaultPort) {
+                    defaultPort = parseInt($defaultPortInput.val());
+                     if (!isValidPort(defaultPort)) {
+                        $infoDiv.text('默认端口无效，请输入1-65535之间的数字。').css('color', 'var(--google-red-error)');
+                        return;
+                    }
+                }
 
                 try {
-                    const yamlData = jsyaml.load(inputYAML);
-                    if (!yamlData || !Array.isArray(yamlData.proxies)) {
-                         throw new Error("Invalid YAML structure: 'proxies' array not found.");
+                    const parsedData = jsyaml.load(inputYAML);
+                    const proxiesList = findProxies(parsedData);
+
+                    // After checking, validate if we have a valid proxy list.
+                    if (!proxiesList || proxiesList.length === 0) {
+                        throw new Error("Invalid or empty proxy list. Please provide a valid Clash YAML with a 'proxies' list, or a list of proxies.");
                     }
-                    const numProxies = yamlData.proxies.length;
+                    
+                    const numProxies = proxiesList.length;
                     
                     const newYAML = {
                         'allow-lan': true,
@@ -511,15 +589,28 @@
                             nameserver: ['https://doh.pub/dns-query']
                         },
                         listeners: [],
-                        proxies: yamlData.proxies
+                        proxies: proxiesList
                     };
 
-                    newYAML.listeners = Array.from({ length: numProxies }, (_, i) => ({
-                        name: `mixed${i}`,
-                        type: 'mixed',
-                        port: startPort + i,
-                        proxy: yamlData.proxies[i].name
-                    }));
+                    newYAML.listeners = Array.from({ length: numProxies }, (_, i) => {
+                        let currentPort;
+                        if (useDefaultPort) {
+                            currentPort = (i === 0) ? defaultPort : (startPort + i - 1);
+                        } else {
+                            currentPort = startPort + i;
+                        }
+                        
+                        if (!proxiesList[i] || !proxiesList[i].name) {
+                            throw new Error(`Proxy at index ${i} is missing a 'name' field.`);
+                        }
+
+                        return {
+                            name: `mixed${i}`,
+                            type: 'mixed',
+                            port: currentPort,
+                            proxy: proxiesList[i].name
+                        };
+                    });
 
                     const newYAMLString = jsyaml.dump(newYAML);
                     $outputYAML.val(newYAMLString);
@@ -530,10 +621,23 @@
                         .attr('download', 'config.yaml')
                         .removeClass('disabled');
 
-                    $infoDiv.text(`处理成功！起始端口：${startPort}，结束端口：${startPort + numProxies - 1}`).css('color', 'var(--google-green-success)');
+                    // Generate the success message based on whether the default port is used
+                    let successMessage = '';
+                    if (useDefaultPort) {
+                        if (numProxies === 1) {
+                            successMessage = `处理成功！默认端口：${defaultPort}`;
+                        } else {
+                             const endPort = startPort + numProxies - 2;
+                             successMessage = `处理成功！默认端口：${defaultPort}，其余端口从 ${startPort} 至 ${endPort}。`;
+                        }
+                    } else {
+                        const endPort = startPort + numProxies - 1;
+                        successMessage = `处理成功！起始端口：${startPort}，结束端口：${endPort}。`;
+                    }
+                    $infoDiv.text(successMessage).css('color', 'var(--google-green-success)');
 
                 } catch (error) {
-                    $infoDiv.text('处理失败，请确认文件格式为Clash兼容的YAML！').css('color', 'var(--google-red-error)');
+                    $infoDiv.text('处理失败，请确认输入为有效的Clash代理列表或完整配置！').css('color', 'var(--google-red-error)');
                     console.error(error);
                 }
             });
