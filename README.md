@@ -52,7 +52,7 @@
 
 - **本地订阅转换软件**： [subconverter](https://github.com/asdlokj1qpi233/subconverter/releases "null")
 - **代理客户端 (示例)**： [v2rayN](https://github.com/2dust/v2rayN/releases "null")
-- **视频教程参考**： [YouTube](https://youtu.be/01F8xUxqmkY?si=GkYb5MQbW-YJiKL1 "null")
+- **视频教程参考**： [YouTube](https://www.youtube.com/watch?v=ZXanc7wpP9g&t=72s "null")
 
 ## ❤️ 鸣谢
 
